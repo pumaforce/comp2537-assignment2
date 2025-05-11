@@ -47,7 +47,6 @@ app.use(express.static(__dirname + "/public"));
 
 app.get("/", function(req, res) {
     res.render('index', {authenticated: req.session.authenticated, name: req.session.name});
-    
 });
 
 app.get("/logout", function(req, res) {
@@ -55,7 +54,6 @@ app.get("/logout", function(req, res) {
         req.session.destroy();
         res.redirect("/");
     }
-    
 });
 
 app.get("/signup", function (req, res) {
@@ -126,7 +124,6 @@ app.post("/loggingin", async(req, res) =>{
         }
 
     const users = await userCollection.find({username: username}).project({username: 1, password: 1, name: 1}).toArray();
-    console.log(users);
     if (users.length != 1) {
         console.log("User not found");
         res.redirect("/login?error=User not found");
@@ -134,7 +131,6 @@ app.post("/loggingin", async(req, res) =>{
     } else {
         
         let result = await bcrypt.compare(password, users[0].password);
-        console.log(`${result}`) ;
         if (result === true) {
             req.session.authenticated = true;
             req.session.username = users[0].username;
@@ -151,18 +147,8 @@ app.post("/loggingin", async(req, res) =>{
 });
 
 app.get("/members", validateSession, function(req, res) {
-    console.log(req.session.authenticated);
-    // if (!req.session.authenticated) {
-    //     res.redirect("/login");
-    // } else {
-        
-        let randomNumber = Math.floor(Math.random() * 3);
-        res.render('members', {name: req.session.name, randomNumber: randomNumber});
-        // let html = `<h1>Hello ${req.session.username}</h1>
-        // <h2>Dog ${randomNumber}:</h2> <img src='/dog${randomNumber}.png' style='width:450px;'> <br />
-        // <a href="/logout"><button>Logout</button></a><br />`;  
-        // res.send(html);
-    // }
+    let randomNumber = Math.floor(Math.random() * 3);
+    res.render('members', {name: req.session.name, randomNumber: randomNumber});
 });
 function validateSession(req, res, next) {
     if (req.session.authenticated) {
@@ -177,7 +163,6 @@ app.get("/login", function(req, res) {
 
 app.get('*', (req, res) => {
     res.render('404');
-    // res.status(404).send('404 Not Found');
   });
 
 app.listen(
