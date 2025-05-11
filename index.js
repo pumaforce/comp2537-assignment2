@@ -13,6 +13,9 @@ const expireTime = 1 * 60 * 60 * 1000;
 const PORT = process.env.PORT || 3000;
 const app = express();
 
+app.use(express.static('public'));
+app.set('view engine', 'ejs');
+
 const node_session_secret = process.env.NODE_SESSION_SECRET;
 const mongodb_session_secret = process.env.MONGODB_SECRET;
 const mongodb_user = process.env.MONGODB_USER; 
@@ -43,16 +46,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(__dirname + "/public"));
 
 app.get("/", function(req, res) {
-    if (!req.session.authenticated) {
-        let signUpHtml =`<a href="/signup"><button>Sign Up</button></a>`;
-        let loginHtml =`<a href="/login"><button>Log in</button></a>`;
-        res.send(signUpHtml + `<br /> ` + loginHtml); 
-    } else {
-        let html = `Hello ${req.session.name} <br /> <br />
-            <a href="/members"><button>Go to Memebers Area</button></a><br />
-            <a href="/logout"><button>Logout</button></a><br />`;
-        res.send(html);
-    } 
+    res.render('index', {authenticated: req.session.authenticated, name: req.session.name});
     
 });
 
@@ -65,13 +59,7 @@ app.get("/logout", function(req, res) {
 });
 
 app.get("/signup", function (req, res) {
-    const html = `<form action="/submitUser" method="POST">
-    <input type="text" name="name" placeholder="Name"><br />
-    <input type="text" name="username" placeholder="Username"><br />
-    <input type="password" name="password" placeholder="Password"><br />
-    <button type="submit">Submit</button>
-    </form>`;
-    res.send(html);
+    res.render('signup');
 });
 
 app.post("/submitUser", async (req, res) =>{
@@ -79,19 +67,16 @@ app.post("/submitUser", async (req, res) =>{
     let username = req.body.username;
     let password = req.body.password;
 
-    let errorHtml =`<a href="/signup">Try again</a>`;
-    if (name === "") {
-        res.send("Name is required  <br /><br />" + errorHtml);
+    if (name == null || username == null || password == null || name == "" || username == "" || password == "") {
+        res.render('submitUser', {
+            name: name,
+            username: username,
+            password: password,
+            sqlInjection: false
+        });
         return;
     }
-    if (username === "") {
-        res.send("Username is required  <br /><br />" + errorHtml);
-        return;
-    } 
-    if (password === "") {
-        res.send("Password is required  <br /><br />" + errorHtml);
-        return;
-    }
+
     const schema = Joi.object(
     {
         name: Joi.string().alphanum().max(20).required(),
@@ -100,7 +85,12 @@ app.post("/submitUser", async (req, res) =>{
     });
     const validationResult = schema.validate({name, username, password});
     if (validationResult.error != null) {
-        res.send("<h1 style='color:darkred;'>A NoSQL injection attack was detected!!</h1>");
+        res.render('submitUser', {
+            name: name,
+            username: username,
+            password: password,
+            sqlInjection: true
+        });
         return;
     }
     let hashedPassword = bcrypt.hashSync(password, saltRounds);
@@ -110,14 +100,8 @@ app.post("/submitUser", async (req, res) =>{
         password: hashedPassword
     });
     
-    
-    console.log(users);
-    let usershtml = "";
-    for (i = 0; i < users.length; i++) {
-        usershtml += `<li>${users[i].username} : ${users[i].password}</li>`;
-    }
     await userCollection.insertOne({username: username, password: hashedPassword, name: name});
-    let html = `<ul>${usershtml}</ul>`;
+    
     req.session.authenticated = true;
     req.session.username = username;
     req.session.name = name;
@@ -137,7 +121,7 @@ app.post("/loggingin", async(req, res) =>{
         });
         const validationResult = schema.validate({username, password});
         if (validationResult.error != null) {
-            res.send("<h1 style='color:darkred;'>A NoSQL injection attack was detected!!</h1>");
+            res.redirect("/login?error=A NoSQL injection attack was detected!!");
             return;
         }
 
@@ -166,41 +150,34 @@ app.post("/loggingin", async(req, res) =>{
     }
 });
 
-app.get("/members", function(req, res) {
+app.get("/members", validateSession, function(req, res) {
     console.log(req.session.authenticated);
-    if (!req.session.authenticated) {
-        res.redirect("/login");
-    } else {
+    // if (!req.session.authenticated) {
+    //     res.redirect("/login");
+    // } else {
         
         let randomNumber = Math.floor(Math.random() * 3);
-        
-        let html = `<h1>Hello ${req.session.username}</h1>
-        <h2>Dog ${randomNumber}:</h2> <img src='/dog${randomNumber}.png' style='width:450px;'> <br />
-        <a href="/logout"><button>Logout</button></a><br />`;  
-        res.send(html);
-    }
+        res.render('members', {name: req.session.name, randomNumber: randomNumber});
+        // let html = `<h1>Hello ${req.session.username}</h1>
+        // <h2>Dog ${randomNumber}:</h2> <img src='/dog${randomNumber}.png' style='width:450px;'> <br />
+        // <a href="/logout"><button>Logout</button></a><br />`;  
+        // res.send(html);
+    // }
 });
-
-app.get("/login", function(req, res) {
-    
-    let htmlError = "";
-    if (req.query.error) {
-        htmlError = `<h3 style='color:red;'>${req.query.error}</h3>`;
+function validateSession(req, res, next) {
+    if (req.session.authenticated) {
+        next();
+    } else {
+        res.redirect("/login");
     }
-    const html = `<form action="/loggingin" method="POST">
-    <input type="text" name="username" placeholder="Username" required><br />
-    <input type="password" name="password" placeholder="Password" required><br />
-    <button type="submit">Submit</button><br />
-    <a href="/signup">Sign Up</a> <br />
-    <a href="/">Home</a>
-    </form>${htmlError}`;
-
-    res.send(html);
-    
+}
+app.get("/login", function(req, res) {
+    res.render('login', {error: req.query.error});
 });
 
 app.get('*', (req, res) => {
-    res.status(404).send('404 Not Found');
+    res.render('404');
+    // res.status(404).send('404 Not Found');
   });
 
 app.listen(
