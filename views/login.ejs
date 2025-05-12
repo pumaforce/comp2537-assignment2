@@ -1,10 +1,16 @@
-<form action="/loggingin" method="POST">
-    <input type="text" name="username" placeholder="Username" required><br />
-    <input type="password" name="password" placeholder="Password" required><br />
-    <button type="submit">Submit</button><br />
+<%- include("templates/header")%>
+<div class="container input-group mb-3">
+    <form action="/loggingin" method="POST">
+        <input class="form-control" type="text" name="username" placeholder="Username" required><br />
+        <input class="form-control" type="password" name="password" placeholder="Password" required><br />
+        <button type="submit">Submit</button>
+    </form>
+</div>
+<div class="container">
     <a href="/signup">Sign Up</a> <br />
     <a href="/">Home</a>
-</form>
+</div>
 <% if (error) { %>
     <h3 style='color:red;'><%=error%></h3>
 <% } %>
+<%- include("templates/footer")%>

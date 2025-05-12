@@ -1,11 +1,19 @@
+<%- include("templates/header") %>
+<div>
+    <% if (!authenticated) { %>
+        <div class="mp-5">
+            <a href="/signup"><button class="btn btn-primary">Sign Up</button></a>
+            <a href="/login"><button class="btn btn-primary">Log in</button></a>
+        </div>
+        
+        
+    <%} else { %>
+        <h1>Hello <%= name %> !</h1>
+        <div class="mt-5">
+            <a href="/members"><button class="btn btn-primary">Go to Memebers Area</button></a>
+            <a href="/logout"><button class="btn btn-primary">Logout</button></a>
+        </div>
+    <% } %>
+</div>
 
-<% if (!authenticated) { %>
-    <a href="/signup"><button>Sign Up</button></a>
-    <br />
-    <a href="/login"><button>Log in</button></a>
-    
-<%} else { %>
-    Hello <%= name %> <br /> <br />
-        <a href="/members"><button>Go to Memebers Area</button></a><br />
-        <a href="/logout"><button>Logout</button></a><br />
-<% } %>
+<%- include("templates/footer")%>

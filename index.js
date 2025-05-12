@@ -26,7 +26,24 @@ const mongodb_database = process.env.MONGODB_DATABASE;
 var {database} = include('databaseConnection');
 const userCollection = database.db(mongodb_database).collection("users");
 
-let users = [];
+app.locals.navLinks = [
+    {
+        name: "Home",
+        url: "/"
+    },
+    {
+        name: "Dogs",
+        url: "/dogs"
+    },
+    {
+        name: "Login",
+        url: "/login"
+    },
+    {
+        name: "404",
+        url: "/404"
+    }
+]
 
 var mongoStore = MongoStore.create({
     mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`,
@@ -44,6 +61,15 @@ app.use(session({
 
 app.use(express.urlencoded({ extended: false }));   
 app.use(express.static(__dirname + "/public"));
+app.use((req, res, next) => {
+    let fullUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
+    console.log("Request URL: " + fullUrl);
+    let folders = new URL(fullUrl).pathname.split("/").slice(1);
+    app.locals.currentURL = `/${folders}`;
+    console.log("Folders: " + app.locals.folders);
+    
+    next();
+});
 
 app.get("/", function(req, res) {
     res.render('index', {authenticated: req.session.authenticated, name: req.session.name});
@@ -92,13 +118,7 @@ app.post("/submitUser", async (req, res) =>{
         return;
     }
     let hashedPassword = bcrypt.hashSync(password, saltRounds);
-    users.push({
-        name: name,
-        username: username,
-        password: hashedPassword
-    });
-    
-    await userCollection.insertOne({username: username, password: hashedPassword, name: name});
+    await userCollection.insertOne({username: username, password: hashedPassword, name: name, user_type: "normal"});
     
     req.session.authenticated = true;
     req.session.username = username;
@@ -123,7 +143,7 @@ app.post("/loggingin", async(req, res) =>{
             return;
         }
 
-    const users = await userCollection.find({username: username}).project({username: 1, password: 1, name: 1}).toArray();
+    const users = await userCollection.find({username: username}).project({username: 1, password: 1, name: 1, user_type: 1}).toArray();
     if (users.length != 1) {
         console.log("User not found");
         res.redirect("/login?error=User not found");
@@ -136,6 +156,7 @@ app.post("/loggingin", async(req, res) =>{
             req.session.username = users[0].username;
             req.session.name = users[0].name;
             req.session.cookie.maxAge = expireTime;
+            req.session.user_type = users[0].user_type;
             res.redirect("/");
             return;
         } else {
@@ -145,16 +166,73 @@ app.post("/loggingin", async(req, res) =>{
         }
     }
 });
+app.get('/updateUser', async (req, res) => {
+    try {
+        console.log("Update user " + req.query.username + " " + req.query.usertype);
 
+        const result = await userCollection.updateOne(
+            { username: req.query.username },
+            { $set: { user_type: req.query.usertype } }
+            
+        );
+        
+        res.redirect('/admin');
+    } catch (e) {
+        console.log("Caught error:", e);
+        res.render('errorMessage', { error: "Unexpected error occurred" });
+    }
+});
+app.get("/dogs", validateSession, function(req, res) {
+    let randomNumber = Math.floor(Math.random() * 3);
+    res.render('dogs', {name: req.session.name});
+});
 app.get("/members", validateSession, function(req, res) {
     let randomNumber = Math.floor(Math.random() * 3);
-    res.render('members', {name: req.session.name, randomNumber: randomNumber});
+    // res.render('members', {name: req.session.name, randomNumber: randomNumber});
+    res.render('dogs', {name: req.session.name});
 });
-function validateSession(req, res, next) {
+app.get("/admin", validateSession, adminAuthorization, async function(req, res) {
+    const results = await userCollection.find({}).project({username: 1, name: 1, user_type: 1}).toArray();
+    console.log(results);
+    // res.send('Good')
+    res.render('admin',{users: results});
+    
+
+    // userCollection.find({}).project({username: 1, name: 1}).toArray((err, result) => {
+    //     if (err) {
+    //         console.log(err);
+    //         res.render('errorMessage', {error: "Error retrieving users"});
+    //     } else {
+    //         res.render('users', {users: result});
+    //     }
+    // });
+});
+function isAdmin(req) {
+    console.log("User type: " + req.session.user_type);
+    if (req.session.user_type === "admin") {
+        return true;
+    } 
+    return false;
+}
+function isAuthenticated(req) {
     if (req.session.authenticated) {
+        return true;
+    } else {
+        return false;
+    }
+}
+function validateSession(req, res, next) {
+    if (isAuthenticated(req)) {
         next();
     } else {
         res.redirect("/login");
+    }
+}
+function adminAuthorization(req, res, next) {
+    if (isAuthenticated(req) && isAdmin(req)) {
+        next();
+    } else {
+        res.render('errorMessage', {error: "Not authorized"});
     }
 }
 app.get("/login", function(req, res) {

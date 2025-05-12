@@ -1,0 +1,43 @@
+<%- include("templates/header")%>
+<h1>User List:</h1>
+
+<!-- <% if (users.length > 0) { %>
+    <ul>
+        <% users.forEach(user => { %>
+            <li><%= user.name %></li>
+        <% }) %>
+    </ul>
+<% } else { %>
+    <p>No users found.</p>
+<% } %> -->
+<div class="container mt-4 text-center">
+    <% if (users.length > 0) { %>
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Type</th>
+            </tr>
+            </thead>
+            <tbody>
+            <% users.forEach(user => { %>
+                <tr>
+                    <td><%= user.name %></td>
+                    <td><%= user.username %></td>
+                    <td><%= user.user_type %></td>
+                    <td class="mp-4">
+                        <a class="btn btn-success" href="/updateUser?username=<%=user.username%>&amp;usertype=admin"> Promote to Admin</a>
+                        <a class="btn btn-danger" href="/updateUser?username=<%=user.username%>&amp;usertype=user"> Demote to User</a>
+                    </td>
+                    
+                </tr>
+            <% }) %>
+            </tbody>
+        </table>
+    <% } else { %>
+        <p>No users found.</p>
+    <% } %>
+</div>
+
+<%- include("templates/footer")%>

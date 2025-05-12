@@ -1,3 +1,5 @@
+<%- include("templates/header")%>
+
 <a href="/signup">Try again</a><br />
 
 <% if (name === "") { %>
@@ -15,3 +17,5 @@ if (sqlInjection === true) { %>
     <h1 style='color:darkred;'>A SQL injection attack was detected!!</h1><br/>
 <% } %>
 <a href="/">Go to Home</a>
+
+<%- include("templates/footer")%>
